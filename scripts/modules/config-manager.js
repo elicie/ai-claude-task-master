@@ -63,6 +63,12 @@ const DEFAULTS = {
 		projectName: 'Task Master',
 		ollamaBaseURL: 'http://localhost:11434/api',
 		bedrockBaseURL: 'https://bedrock.us-east-1.amazonaws.com'
+	},
+	claudeCode: {
+		timeoutMs: 120000, // 2 minutes default
+		skipPermissions: false,
+		maxConcurrentProcesses: 4,
+		cliPath: 'claude' // Default claude command
 	}
 };
 
@@ -409,6 +415,19 @@ function getVertexLocation(explicitRoot = null) {
 }
 
 /**
+ * Gets Claude Code provider configuration
+ * @param {string|null} explicitRoot - Optional explicit path to the project root.
+ * @returns {object} Claude Code configuration object with defaults
+ */
+function getClaudeCodeConfig(explicitRoot = null) {
+	// Return Claude Code specific configuration with defaults
+	const config = getGlobalConfig(explicitRoot);
+	const claudeCodeConfig = config.claudeCode || {};
+
+	return claudeCodeConfig;
+}
+
+/**
  * Gets model parameters (maxTokens, temperature) for a specific role,
  * considering model-specific overrides from supported-models.json.
  * @param {string} role - The role ('main', 'research', 'fallback').
@@ -482,6 +501,9 @@ function isApiKeySet(providerName, session = null, projectRoot = null) {
 	// Define the expected environment variable name for each provider
 	if (providerName?.toLowerCase() === 'ollama') {
 		return true; // Indicate key status is effectively "OK"
+	}
+	if (providerName?.toLowerCase() === 'claude-code') {
+		return true; // Uses CLI authentication, no API key needed
 	}
 
 	const keyMap = {
@@ -577,6 +599,8 @@ function getMcpApiKeyStatus(providerName, projectRoot = null) {
 				break;
 			case 'ollama':
 				return true; // No key needed
+			case 'claude-code':
+				return true; // Uses CLI authentication
 			case 'mistral':
 				apiKeyToCheck = mcpEnv.MISTRAL_API_KEY;
 				placeholderValue = 'YOUR_MISTRAL_API_KEY_HERE';
@@ -794,5 +818,6 @@ export {
 	// ADD: Function to get all provider names
 	getAllProviders,
 	getVertexProjectId,
-	getVertexLocation
+	getVertexLocation,
+	getClaudeCodeConfig
 };

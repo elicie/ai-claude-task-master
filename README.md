@@ -37,7 +37,7 @@ cursor://anysphere.cursor-deeplink/mcp/install?name=taskmaster-ai&config=eyJjb21
 
 Taskmaster utilizes AI across several commands, and those require a separate API key. You can use a variety of models from different AI providers provided you add your API keys. For example, if you want to use Claude 3.7, you'll need an Anthropic API key.
 
-You can define 3 types of models to be used: the main model, the research model, and the fallback model (in case either the main or research fail). Whatever model you use, its provider API key must be present in either mcp.json or .env.
+You can define 3 types of models to be used: the main model, the research model, and the fallback model (in case either the main or research fail). Whatever model you use, its provider API key must be present in either mcp.json or .env (except for Claude Code which uses CLI authentication).
 
 At least one (1) of the following is required:
 
@@ -47,6 +47,7 @@ At least one (1) of the following is required:
 - Perplexity API key (for research model)
 - xAI API Key (for research or main model)
 - OpenRouter API Key (for research or main model)
+- Claude Code CLI (authenticated via `claude login`)
 
 Using the research model is optional but highly recommended. You will need at least ONE API key. Adding all API keys enables you to seamlessly switch between model providers at will.
 
@@ -208,6 +209,49 @@ task-master next
 # Generate task files
 task-master generate
 ```
+
+### Using Claude Code Provider
+
+Claude Code is supported as an AI provider that uses Claude through the Claude Code CLI instead of API keys.
+
+#### Setup
+
+1. Install Claude Code CLI:
+   ```bash
+   npm install -g @anthropic-ai/claude-code
+   ```
+
+2. Authenticate:
+   ```bash
+   claude login
+   ```
+
+3. Configure Task Master to use Claude Code:
+   ```bash
+   task-master models --setup
+   # Select 'claude-code' as provider
+   # Choose 'opus' or 'sonnet' as the model
+   ```
+
+4. Update configuration in `.taskmaster/config.json`:
+   ```json
+   {
+     "models": {
+       "main": {
+         "provider": "claude-code",
+         "modelId": "opus",
+         "maxTokens": 32000,
+         "temperature": 0.2
+       }
+     },
+     "claudeCode": {
+       "timeoutMs": 180000,  // 3 minutes for complex tasks
+       "skipPermissions": false,
+       "maxConcurrentProcesses": 4,
+       "cliPath": "claude"
+     }
+   }
+   ```
 
 ## Troubleshooting
 

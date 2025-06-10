@@ -164,3 +164,64 @@ Google Vertex AI is Google Cloud's enterprise AI platform and requires specific 
      "vertexLocation": "us-central1"
    }
    ```
+
+### Claude Code Configuration
+
+Claude Code is Anthropic's AI coding assistant accessed through the Claude Code CLI. It supports OAuth authentication in addition to traditional API keys.
+
+1. **Prerequisites**:
+   - Claude Code CLI installed
+   - Authenticated Claude Code access (via `claude login` or API key)
+
+2. **Installation**:
+   ```bash
+   # Install Claude Code CLI globally
+   npm install -g @anthropic-ai/claude-code
+   
+   # Authenticate with Claude
+   claude login
+   ```
+
+3. **Authentication**:
+   - No API key configuration needed in Task Master
+   - Authentication is handled through the Claude Code CLI
+   - The provider will automatically check if you're authenticated
+   - If not authenticated, you'll see error messages guiding you to run `claude login`
+
+4. **Configuration Options** (in `.taskmaster/config.json`):
+   ```json
+   "claudeCode": {
+     "timeoutMs": 120000,              // Request timeout (default: 120000ms/2 minutes)
+     "skipPermissions": false,         // Skip permission prompts (default: false)
+     "maxConcurrentProcesses": 4,      // Max concurrent Claude processes (default: 4)
+     "cliPath": "claude"               // Path to Claude CLI (default: "claude")
+   }
+   ```
+
+5. **Available Models**:
+   - `opus`: High-performance model for complex tasks
+   - `sonnet`: Balanced model for general use
+
+6. **Example Configuration**:
+   ```json
+   {
+     "models": {
+       "main": {
+         "provider": "claude-code",
+         "modelId": "opus",
+         "maxTokens": 32000,
+         "temperature": 0.2
+       }
+     },
+     "claudeCode": {
+       "timeoutMs": 180000,
+       "skipPermissions": true
+     }
+   }
+   ```
+
+7. **Troubleshooting**:
+   - If you see "Claude Code CLI Not Found", install it with `npm install -g @anthropic-ai/claude-code`
+   - If you see "Authentication Required", run `claude login` in your terminal
+   - For timeout issues with complex queries, increase `timeoutMs` in the `claudeCode` configuration up to 600000 (10 minutes)
+   - Check CLI installation with `claude --version`

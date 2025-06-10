@@ -24,7 +24,8 @@ import {
 	getAzureBaseURL,
 	getBedrockBaseURL,
 	getVertexProjectId,
-	getVertexLocation
+	getVertexLocation,
+	getClaudeCodeConfig
 } from './config-manager.js';
 import { log, findProjectRoot, resolveEnvVariable } from './utils.js';
 
@@ -39,7 +40,8 @@ import {
 	OllamaAIProvider,
 	BedrockAIProvider,
 	AzureProvider,
-	VertexAIProvider
+	VertexAIProvider,
+	ClaudeCodeProvider
 } from '../../src/ai-providers/index.js';
 
 // Create provider instances
@@ -53,7 +55,8 @@ const PROVIDERS = {
 	ollama: new OllamaAIProvider(),
 	bedrock: new BedrockAIProvider(),
 	azure: new AzureProvider(),
-	vertex: new VertexAIProvider()
+	vertex: new VertexAIProvider(),
+	'claude-code': new ClaudeCodeProvider()
 };
 
 // Helper function to get cost for a specific model
@@ -172,7 +175,8 @@ function _resolveApiKey(providerName, session, projectRoot = null) {
 		xai: 'XAI_API_KEY',
 		ollama: 'OLLAMA_API_KEY',
 		bedrock: 'AWS_ACCESS_KEY_ID',
-		vertex: 'GOOGLE_API_KEY'
+		vertex: 'GOOGLE_API_KEY',
+		'claude-code': 'CLAUDE_CODE_API_KEY' // Not actually used, but needed for keyMap
 	};
 
 	const envVarName = keyMap[providerName];
@@ -185,7 +189,11 @@ function _resolveApiKey(providerName, session, projectRoot = null) {
 	const apiKey = resolveEnvVariable(envVarName, session, projectRoot);
 
 	// Special handling for providers that can use alternative auth
-	if (providerName === 'ollama' || providerName === 'bedrock') {
+	if (
+		providerName === 'ollama' ||
+		providerName === 'bedrock' ||
+		providerName === 'claude-code'
+	) {
 		return apiKey || null;
 	}
 
@@ -385,7 +393,10 @@ async function _unifiedServiceRunner(serviceType, params) {
 			}
 
 			// Check API key if needed
-			if (providerName?.toLowerCase() !== 'ollama') {
+			if (
+				providerName?.toLowerCase() !== 'ollama' &&
+				providerName?.toLowerCase() !== 'claude-code'
+			) {
 				if (!isApiKeySet(providerName, session, effectiveProjectRoot)) {
 					log(
 						'warn',
@@ -468,6 +479,25 @@ async function _unifiedServiceRunner(serviceType, params) {
 				);
 			}
 
+			// Handle Claude Code specific configuration
+			if (providerName?.toLowerCase() === 'claude-code') {
+				// Get Claude Code configuration
+				const claudeCodeConfig = getClaudeCodeConfig(effectiveProjectRoot);
+
+				// Add Claude Code-specific parameters
+				providerSpecificParams = {
+					timeoutMs: claudeCodeConfig.timeoutMs || 120000,
+					skipPermissions: claudeCodeConfig.skipPermissions || false,
+					maxConcurrentProcesses: claudeCodeConfig.maxConcurrentProcesses || 4,
+					cliPath: claudeCodeConfig.cliPath || 'claude'
+				};
+
+				log(
+					'debug',
+					`Using Claude Code configuration: ${JSON.stringify(providerSpecificParams)}`
+				);
+			}
+
 			const messages = [];
 			if (systemPrompt) {
 				messages.push({ role: 'system', content: systemPrompt });
@@ -498,7 +528,7 @@ async function _unifiedServiceRunner(serviceType, params) {
 			}
 
 			const callParams = {
-				apiKey,
+				...(providerName?.toLowerCase() !== 'claude-code' && { apiKey }),
 				modelId,
 				maxTokens: roleParams.maxTokens,
 				temperature: roleParams.temperature,

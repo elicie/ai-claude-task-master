@@ -61,6 +61,8 @@
 | openrouter | mistralai/devstral-small                       | —         | 0.1        | 0.3         |
 | openrouter | mistralai/mistral-nemo                         | —         | 0.03       | 0.07        |
 | openrouter | thudm/glm-4-32b:free                           | —         | 0          | 0           |
+| claude-code | opus                                          | —         | 0          | 0           |
+| claude-code | sonnet                                        | —         | 0          | 0           |
 
 ## Research Models
 
@@ -126,3 +128,5 @@
 | openrouter | mistralai/mistral-small-3.1-24b-instruct       | —         | 0.1        | 0.3         |
 | openrouter | mistralai/mistral-nemo                         | —         | 0.03       | 0.07        |
 | openrouter | thudm/glm-4-32b:free                           | —         | 0          | 0           |
+| claude-code | opus                                          | —         | 0          | 0           |
+| claude-code | sonnet                                        | —         | 0          | 0           |

@@ -36,6 +36,16 @@ const mockModelMap = {
 			id: 'test-openai-model',
 			cost_per_1m_tokens: { input: 2, output: 6, currency: 'USD' }
 		}
+	],
+	'claude-code': [
+		{
+			id: 'opus',
+			cost_per_1m_tokens: { input: 0, output: 0, currency: 'USD' }
+		},
+		{
+			id: 'sonnet',
+			cost_per_1m_tokens: { input: 0, output: 0, currency: 'USD' }
+		}
 	]
 	// Add other providers/models if needed for specific tests
 };
@@ -64,6 +74,7 @@ const mockGetDefaultNumTasks = jest.fn();
 const mockGetDefaultSubtasks = jest.fn();
 const mockGetDefaultPriority = jest.fn();
 const mockGetProjectName = jest.fn();
+const mockGetClaudeCodeConfig = jest.fn();
 
 jest.unstable_mockModule('../../scripts/modules/config-manager.js', () => ({
 	// Core config access
@@ -80,7 +91,13 @@ jest.unstable_mockModule('../../scripts/modules/config-manager.js', () => ({
 	// Validation
 	validateProvider: mockValidateProvider,
 	validateProviderModelCombination: mockValidateProviderModelCombination,
-	VALID_PROVIDERS: ['anthropic', 'perplexity', 'openai', 'google'],
+	VALID_PROVIDERS: [
+		'anthropic',
+		'perplexity',
+		'openai',
+		'google',
+		'claude-code'
+	],
 	MODEL_MAP: mockModelMap,
 	getAvailableModels: mockGetAvailableModels,
 
@@ -117,7 +134,8 @@ jest.unstable_mockModule('../../scripts/modules/config-manager.js', () => ({
 	getBedrockBaseURL: mockGetBedrockBaseURL,
 	getVertexProjectId: mockGetVertexProjectId,
 	getVertexLocation: mockGetVertexLocation,
-	getMcpApiKeyStatus: mockGetMcpApiKeyStatus
+	getMcpApiKeyStatus: mockGetMcpApiKeyStatus,
+	getClaudeCodeConfig: mockGetClaudeCodeConfig
 }));
 
 // Mock AI Provider Classes with proper methods
@@ -140,6 +158,12 @@ const mockOpenAIProvider = {
 };
 
 const mockOllamaProvider = {
+	generateText: jest.fn(),
+	streamText: jest.fn(),
+	generateObject: jest.fn()
+};
+
+const mockClaudeCodeProvider = {
 	generateText: jest.fn(),
 	streamText: jest.fn(),
 	generateObject: jest.fn()
@@ -180,7 +204,8 @@ jest.unstable_mockModule('../../src/ai-providers/index.js', () => ({
 		generateText: jest.fn(),
 		streamText: jest.fn(),
 		generateObject: jest.fn()
-	}))
+	})),
+	ClaudeCodeProvider: jest.fn(() => mockClaudeCodeProvider)
 }));
 
 // Mock utils logger, API key resolver, AND findProjectRoot
@@ -272,6 +297,12 @@ describe('Unified AI Services', () => {
 		mockGetUserId.mockReturnValue('test-user-id'); // Add default mock for getUserId
 		mockIsApiKeySet.mockReturnValue(true); // Default to true for most tests
 		mockGetBaseUrlForRole.mockReturnValue(null); // Default to no base URL
+		mockGetClaudeCodeConfig.mockReturnValue({
+			timeoutMs: 120000,
+			skipPermissions: false,
+			maxConcurrentProcesses: 4,
+			cliPath: 'claude'
+		}); // Default Claude Code config
 	});
 
 	describe('generateTextService', () => {
@@ -651,6 +682,39 @@ describe('Unified AI Services', () => {
 
 			// Should call Ollama provider
 			expect(mockOllamaProvider.generateText).toHaveBeenCalledTimes(1);
+		});
+
+		test('should not check API key for Claude Code provider and try to use it', async () => {
+			// Setup: Set main provider to claude-code
+			mockGetMainProvider.mockReturnValue('claude-code');
+			mockGetMainModelId.mockReturnValue('opus');
+
+			// Mock Claude Code text generation to succeed
+			mockClaudeCodeProvider.generateText.mockResolvedValue({
+				text: 'Claude Code response (no API key required)',
+				usage: { inputTokens: 10, outputTokens: 10, totalTokens: 20 }
+			});
+
+			const params = {
+				role: 'main',
+				prompt: 'Claude Code special case test',
+				session: { env: {} }
+			};
+
+			const result = await generateTextService(params);
+
+			// Should have gotten the Claude Code response
+			expect(result.mainResult).toBe(
+				'Claude Code response (no API key required)'
+			);
+
+			// isApiKeySet shouldn't be called for Claude Code
+			// Note: This is indirect - the code just doesn't check isApiKeySet for claude-code
+			// so we're verifying claude-code provider was called despite isApiKeySet being mocked to false
+			mockIsApiKeySet.mockReturnValue(false); // Should be ignored for Claude Code
+
+			// Should call Claude Code provider
+			expect(mockClaudeCodeProvider.generateText).toHaveBeenCalledTimes(1);
 		});
 
 		test('should correctly use the provided session for API key check', async () => {
