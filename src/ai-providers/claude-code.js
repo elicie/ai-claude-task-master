@@ -395,7 +395,13 @@ export class ClaudeCodeProvider extends BaseAIProvider {
 			// The SDK will handle authentication checks and throw appropriate errors
 			const client = createClaudeCode(config);
 			log('debug', 'Claude Code client created successfully');
-			return client;
+			
+			// Return a wrapped client that passes ALL settings to each model
+			return (modelId) => {
+				log('debug', `Creating Claude Code model ${modelId} with config:`, config);
+				// Pass ALL config settings when creating the model
+				return client(modelId, config);
+			};
 		} catch (error) {
 			log('debug', 'Failed to create Claude Code client', {
 				config,

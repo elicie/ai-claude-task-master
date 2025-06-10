@@ -130,7 +130,8 @@ function _loadAndValidateConfig(explicitRoot = null) {
 							? { ...defaults.models.fallback, ...parsedConfig.models.fallback }
 							: { ...defaults.models.fallback }
 				},
-				global: { ...defaults.global, ...parsedConfig?.global }
+				global: { ...defaults.global, ...parsedConfig?.global },
+				claudeCode: { ...defaults.claudeCode, ...parsedConfig?.claudeCode }
 			};
 			configSource = `file (${configPath})`; // Update source info
 
