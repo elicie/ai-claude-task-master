@@ -455,13 +455,28 @@ export class ClaudeCodeProvider extends BaseAIProvider {
 	}
 
 	/**
-	 * Override generateObject to provide a clear error message
-	 * The Claude Code CLI doesn't support structured output
+	 * Override generateObject to add retry logic for Claude Code specific failures
+	 * The updated ai-sdk-provider-claude-code now supports object generation
 	 */
 	async generateObject(params) {
-		throw new Error(
-			'Structured object generation is not supported by Claude Code CLI. ' +
-				'Please use generateText() for text-based responses or consider using an API-based provider for structured output.'
-		);
+		return this.withRetry('generateObject', async () => {
+			log('debug', 'Claude Code generateObject called', {
+				modelId: params.modelId,
+				schemaName: params.output?.name,
+				hasSchema: !!params.output?.schema,
+				maxTokens: params.maxTokens,
+				temperature: params.temperature
+			});
+
+			// First check if CLI is installed
+			if (!this.checkCLIInstallation()) {
+				const error = new Error('Claude Code CLI is not installed');
+				log('error', 'Claude Code generateObject failed: CLI not installed');
+				throw error;
+			}
+
+			// Call parent implementation which will use the SDK's generateObject support
+			return super.generateObject(params);
+		});
 	}
 }
