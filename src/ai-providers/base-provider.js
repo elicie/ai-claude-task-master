@@ -1,5 +1,5 @@
-import { generateText, streamText, generateObject } from 'ai';
-import { log } from '../../scripts/modules/index.js';
+import { generateText, streamText, generateObject } from "ai";
+import { log } from "../../scripts/modules/index.js";
 
 /**
  * Base class for all AI providers
@@ -7,7 +7,7 @@ import { log } from '../../scripts/modules/index.js';
 export class BaseAIProvider {
 	constructor() {
 		if (this.constructor === BaseAIProvider) {
-			throw new Error('BaseAIProvider cannot be instantiated directly');
+			throw new Error("BaseAIProvider cannot be instantiated directly");
 		}
 
 		// Each provider must set their name
@@ -51,10 +51,10 @@ export class BaseAIProvider {
 			params.temperature !== undefined &&
 			(params.temperature < 0 || params.temperature > 1)
 		) {
-			throw new Error('Temperature must be between 0 and 1');
+			throw new Error("Temperature must be between 0 and 1");
 		}
 		if (params.maxTokens !== undefined && params.maxTokens <= 0) {
-			throw new Error('maxTokens must be greater than 0');
+			throw new Error("maxTokens must be greater than 0");
 		}
 	}
 
@@ -63,13 +63,13 @@ export class BaseAIProvider {
 	 */
 	validateMessages(messages) {
 		if (!messages || !Array.isArray(messages) || messages.length === 0) {
-			throw new Error('Invalid or empty messages array provided');
+			throw new Error("Invalid or empty messages array provided");
 		}
 
 		for (const msg of messages) {
 			if (!msg.role || !msg.content) {
 				throw new Error(
-					'Invalid message format. Each message must have role and content'
+					"Invalid message format. Each message must have role and content"
 				);
 			}
 		}
@@ -79,9 +79,9 @@ export class BaseAIProvider {
 	 * Common error handler
 	 */
 	handleError(operation, error) {
-		const errorMessage = error.message || 'Unknown error occurred';
-		log('error', `${this.name} ${operation} failed: ${errorMessage}`, {
-			error
+		const errorMessage = error.message || "Unknown error occurred";
+		log("error", `${this.name} ${operation} failed: ${errorMessage}`, {
+			error,
 		});
 		throw new Error(
 			`${this.name} API error during ${operation}: ${errorMessage}`
@@ -93,7 +93,7 @@ export class BaseAIProvider {
 	 * @abstract
 	 */
 	getClient(params) {
-		throw new Error('getClient must be implemented by provider');
+		throw new Error("getClient must be implemented by provider");
 	}
 
 	/**
@@ -105,7 +105,7 @@ export class BaseAIProvider {
 			this.validateMessages(params.messages);
 
 			log(
-				'debug',
+				"debug",
 				`Generating ${this.name} text with model: ${params.modelId}`
 			);
 
@@ -114,11 +114,11 @@ export class BaseAIProvider {
 				model: client(params.modelId),
 				messages: params.messages,
 				maxTokens: params.maxTokens,
-				temperature: params.temperature
+				temperature: params.temperature,
 			});
 
 			log(
-				'debug',
+				"debug",
 				`${this.name} generateText completed successfully for model: ${params.modelId}`
 			);
 
@@ -127,11 +127,11 @@ export class BaseAIProvider {
 				usage: {
 					inputTokens: result.usage?.promptTokens,
 					outputTokens: result.usage?.completionTokens,
-					totalTokens: result.usage?.totalTokens
-				}
+					totalTokens: result.usage?.totalTokens,
+				},
 			};
 		} catch (error) {
-			this.handleError('text generation', error);
+			this.handleError("text generation", error);
 		}
 	}
 
@@ -143,24 +143,27 @@ export class BaseAIProvider {
 			this.validateParams(params);
 			this.validateMessages(params.messages);
 
-			log('debug', `Streaming ${this.name} text with model: ${params.modelId}`);
+			log(
+				"debug",
+				`Streaming ${this.name} text with model: ${params.modelId}`
+			);
 
 			const client = this.getClient(params);
 			const stream = await streamText({
 				model: client(params.modelId),
 				messages: params.messages,
 				maxTokens: params.maxTokens,
-				temperature: params.temperature
+				temperature: params.temperature,
 			});
 
 			log(
-				'debug',
+				"debug",
 				`${this.name} streamText initiated successfully for model: ${params.modelId}`
 			);
 
 			return stream;
 		} catch (error) {
-			this.handleError('text streaming', error);
+			this.handleError("text streaming", error);
 		}
 	}
 
@@ -173,14 +176,16 @@ export class BaseAIProvider {
 			this.validateMessages(params.messages);
 
 			if (!params.schema) {
-				throw new Error('Schema is required for object generation');
+				throw new Error("Schema is required for object generation");
 			}
 			if (!params.objectName) {
-				throw new Error('Object name is required for object generation');
+				throw new Error(
+					"Object name is required for object generation"
+				);
 			}
 
 			log(
-				'debug',
+				"debug",
 				`Generating ${this.name} object ('${params.objectName}') with model: ${params.modelId}`
 			);
 
@@ -189,13 +194,54 @@ export class BaseAIProvider {
 				model: client(params.modelId),
 				messages: params.messages,
 				schema: params.schema,
-				mode: 'auto',
+				mode: "auto",
 				maxTokens: params.maxTokens,
-				temperature: params.temperature
+				temperature: params.temperature,
 			});
 
+			// result.object가 undefined일 경우 원본 응답을 로그로 남기고, 코드블록 파싱 재시도
+			if (!result.object) {
+				const raw =
+					result.rawResponse ||
+					result.text ||
+					result.response ||
+					JSON.stringify(result);
+				log(
+					"error",
+					`[${this.name}] Claude 응답 파싱 실패. 원본 응답:`,
+					{ raw }
+				);
+				// 코드블록 내부만 추출해서 파싱 재시도
+				let extracted = raw;
+				const match =
+					typeof raw === "string" &&
+					raw.match(/```json([\s\S]*?)```/);
+				if (match) {
+					extracted = match[1].trim();
+				}
+				try {
+					const parsed = JSON.parse(extracted);
+					return {
+						object: parsed,
+						usage: {
+							inputTokens: result.usage?.promptTokens,
+							outputTokens: result.usage?.completionTokens,
+							totalTokens: result.usage?.totalTokens,
+						},
+					};
+				} catch (e) {
+					log(
+						"error",
+						`[${this.name}] 코드블록 파싱도 실패: ${e.message}`
+					);
+					throw new Error(
+						`${this.name} API error during object generation: Failed to parse Claude response as JSON. 원본 응답: ${raw}`
+					);
+				}
+			}
+
 			log(
-				'debug',
+				"debug",
 				`${this.name} generateObject completed successfully for model: ${params.modelId}`
 			);
 
@@ -204,11 +250,11 @@ export class BaseAIProvider {
 				usage: {
 					inputTokens: result.usage?.promptTokens,
 					outputTokens: result.usage?.completionTokens,
-					totalTokens: result.usage?.totalTokens
-				}
+					totalTokens: result.usage?.totalTokens,
+				},
 			};
 		} catch (error) {
-			this.handleError('object generation', error);
+			this.handleError("object generation", error);
 		}
 	}
 }
